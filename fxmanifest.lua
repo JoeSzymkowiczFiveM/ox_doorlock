@@ -23,7 +23,7 @@ client_scripts {
 }
 
 server_scripts {
-	'@oxmysql/lib/MySQL.lua',
+	-- '@oxmysql/lib/MySQL.lua',
 	'server/main.lua',
 }
 
@@ -41,7 +41,7 @@ data_file 'AUDIO_WAVEPACK' 'audio/dlc_oxdoorlock'
 data_file 'AUDIO_SOUNDDATA' 'audio/data/oxdoorlock_sounds.dat'
 
 dependencies {
-	'oxmysql',
+	-- 'oxmysql',
 	'ox_lib',
 }
 

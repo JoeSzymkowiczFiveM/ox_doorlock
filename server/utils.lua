@@ -24,8 +24,8 @@ function utils.getFilesInDirectory(path, pattern)
 	return files, fileCount
 end
 
-local frameworks = { 'es_extended', 'ND_Core', 'ox_core', 'qb-core' }
-
+-- local frameworks = { 'es_extended', 'ND_Core', 'ox_core', 'qb-core' }
+local frameworks = { 'ox_core' }
 for i = 1, #frameworks do
 	local framework = frameworks[i]
 

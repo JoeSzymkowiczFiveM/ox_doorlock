@@ -1,13 +1,26 @@
+local ludb = exports['0xludb-fivem']
+
+local idTables = {
+	'ox_doorlocks',
+}
+
+for i=1, #idTables do
+	local result = ludb:retrieveGlobal("ids/"..idTables[i])
+	if not result then
+		ludb:saveGlobal("ids/"..idTables[i], 1)
+	end
+end
+
 if not LoadResourceFile(cache.resource, 'web/build/index.html') then
 	error(
 		'Unable to load UI. Build ox_doorlock or download the latest release.\n	^3https://github.com/overextended/ox_doorlock/releases/latest/download/ox_doorlock.zip^0')
 end
 
-if not lib.checkDependency('oxmysql', '2.4.0') then return end
+-- if not lib.checkDependency('oxmysql', '2.4.0') then return end
 if not lib.checkDependency('ox_lib', '3.14.0') then return end
 
 lib.versionCheck('overextended/ox_doorlock')
-require 'server.convert'
+-- require 'server.convert'
 
 local utils = require 'server.utils'
 local doors = {}
@@ -93,7 +106,11 @@ exports('editDoor', function(id, data)
 			end
 		end
 
-		MySQL.update('UPDATE ox_doorlock SET name = ?, data = ? WHERE id = ?', { door.name, encodeData(door), id })
+		-- MySQL.update('UPDATE ox_doorlock SET name = ?, data = ? WHERE id = ?', { door.name, encodeData(door), id })
+		local doorIdsResult = ludb:retrieve("ox_doorlocks/"..id)
+		doorIdsResult.name = door.name
+		doorIdsResult.data = door
+		ludb:save("ox_doorlocks/"..id, doorIdsResult)
 		TriggerClientEvent('ox_doorlock:editDoorlock', -1, id, door)
 	end
 end)
@@ -143,7 +160,10 @@ local function createDoor(id, door, name)
 		end
 
 		door.items = items
-		MySQL.update('UPDATE ox_doorlock SET data = ? WHERE id = ?', { encodeData(door), id })
+		-- MySQL.update('UPDATE ox_doorlock SET data = ? WHERE id = ?', { encodeData(door), id })
+		local doorIdsResult = ludb:retrieve("ox_doorlocks/"..id)
+		doorIdsResult.data = door
+		ludb:save("ox_doorlocks/"..id, doorIdsResult)
 	end
 
 	doors[id] = door
@@ -152,6 +172,15 @@ end
 
 local isLoaded = false
 local ox_inventory = exports.ox_inventory
+
+local doorsResult = ludb:retrieve("ox_doorlocks/*") or {}
+-- print(json.encode(doorsResult, {indent=true}))
+for k, v in pairs(doorsResult) do
+	-- print(k)
+	createDoor(k, v.data, v.name)
+end
+isLoaded = true
+doorsResult = nil
 
 SetTimeout(0, function()
 	if GetPlayer then return end
@@ -227,22 +256,22 @@ local function isAuthorised(playerId, door, lockpick)
 	return authorised
 end
 
-local sql = LoadResourceFile(cache.resource, 'sql/ox_doorlock.sql')
+-- local sql = LoadResourceFile(cache.resource, 'sql/ox_doorlock.sql')
 
-if sql then MySQL.query(sql) end
+-- if sql then MySQL.query(sql) end
 
-MySQL.ready(function()
-	while Config.DoorList do Wait(100) end
+-- MySQL.ready(function()
+-- 	while Config.DoorList do Wait(100) end
 
-	local response = MySQL.query.await('SELECT `id`, `name`, `data` FROM `ox_doorlock`')
+-- 	local response = MySQL.query.await('SELECT `id`, `name`, `data` FROM `ox_doorlock`')
 
-	for i = 1, #response do
-		local door = response[i]
-		createDoor(door.id, json.decode(door.data), door.name)
-	end
+-- 	for i = 1, #response do
+-- 		local door = response[i]
+-- 		createDoor(door.id, json.decode(door.data), door.name)
+-- 	end
 
-	isLoaded = true
-end)
+-- 	isLoaded = true
+-- end)
 
 ---@param id number
 ---@param state 0 | 1 | boolean
@@ -310,17 +339,37 @@ RegisterNetEvent('ox_doorlock:editDoorlock', function(id, data)
 
 		if id then
 			if data then
-				MySQL.update('UPDATE ox_doorlock SET name = ?, data = ? WHERE id = ?',
-					{ data.name, encodeData(data), id })
+				-- MySQL.update('UPDATE ox_doorlock SET name = ?, data = ? WHERE id = ?',
+				-- 	{ data.name, encodeData(data), id })
+				local saveData = data
+				saveData.coords = {x = saveData.coords.x, y = saveData.coords.y, z = saveData.coords.z}
+				if saveData.doors then
+					local double = saveData.doors
+					for i = 1, 2 do
+						saveData.doors[i].coords = {x = double[i].coords.x, y = double[i].coords.y, z = double[i].coords.z}
+					end
+				end
+				local doorIdsResult = ludb:retrieve("ox_doorlocks/"..id)
+				doorIdsResult.name = data.name
+				doorIdsResult.data = data
+				ludb:save("ox_doorlocks/"..id, doorIdsResult)
 			else
-				MySQL.update('DELETE FROM ox_doorlock WHERE id = ?', { id })
+				-- MySQL.update('DELETE FROM ox_doorlock WHERE id = ?', { id })
+				ludb:delete("ox_doorlocks/"..id)
 			end
 
 			doors[id] = data
 			TriggerClientEvent('ox_doorlock:editDoorlock', -1, id, data)
 		else
-			local insertId = MySQL.insert.await('INSERT INTO ox_doorlock (name, data) VALUES (?, ?)',
-				{ data.name, encodeData(data) })
+			-- local insertId = MySQL.insert.await('INSERT INTO ox_doorlock (name, data) VALUES (?, ?)',
+			-- 	{ data.name, encodeData(data) })
+			local insertId = ludb:retrieveGlobal("ids/ox_doorlocks")
+			-- print(doorIdsResult)
+			ludb:saveGlobal("ids/ox_doorlocks", insertId+1)
+			ludb:save("ox_doorlocks/"..insertId, {
+				name = data.name,
+				data = data
+			})
 			local door = createDoor(insertId, data, data.name)
 
 			TriggerClientEvent('ox_doorlock:setState', -1, door.id, door.state, false, door)

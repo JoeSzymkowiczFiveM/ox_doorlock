@@ -43,9 +43,11 @@ lib.callback('ox_doorlock:getDoors', false, function(data)
 		table.wipe(nearbyDoors)
 		local coords = GetEntityCoords(cache.ped)
 
+		-- print(coords)
 		for _, door in pairs(doors) do
 			local double = door.doors
-			door.distance = #(coords - door.coords)
+			-- door.distance = #(coords - door.coords)
+			door.distance = #(coords - vector3(door.coords.x, door.coords.y, door.coords.z)) -- ADDED
 
 			if double then
 				if door.distance < 80 then
