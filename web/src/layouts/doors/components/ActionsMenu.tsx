@@ -71,7 +71,6 @@ const ActionsMenu: React.FC<{ data: CellContext<DoorColumn, unknown> }> = ({ dat
               labels: { confirm: 'Confirm', cancel: 'Cancel' },
               confirmProps: { color: 'red' },
               onConfirm: () => {
-                console.log(data.row.getValue('id'))
                 fetchNui('deleteDoor', data.row.getValue('id'));
               },
             })

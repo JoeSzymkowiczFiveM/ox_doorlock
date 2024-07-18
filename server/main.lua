@@ -121,7 +121,7 @@ exports('editDoor', function(id, data)
 		doorIdsResult.name = door.name
 		doorIdsResult.data = door
 		ludb:save("ox_doorlocks/"..id, doorIdsResult)
-		TriggerClientEvent('ox_doorlock:editDoorlock', -1, id, door)
+		TriggerClientEvent('ox_doorlock:editDoorlock', -1, tonumber(id), door)
 	end
 end)
 
@@ -135,7 +135,7 @@ end)
 
 local function createDoor(id, door, name)
 	local double = door.doors
-	door.id = id
+	door.id = tonumber(id)
 	door.name = name
 
 	if double then
@@ -176,7 +176,7 @@ local function createDoor(id, door, name)
 		ludb:save("ox_doorlocks/"..id, doorIdsResult)
 	end
 
-	doors[id] = door
+	doors[tonumber(id)] = door
 	return door
 end
 
@@ -184,9 +184,7 @@ local isLoaded = false
 local ox_inventory = exports.ox_inventory
 
 local doorsResult = ludb:retrieve("ox_doorlocks/*") or {}
--- print(json.encode(doorsResult, {indent=true}))
 for k, v in pairs(doorsResult) do
-	-- print(k)
 	createDoor(k, v.data, v.name)
 end
 isLoaded = true
@@ -380,7 +378,7 @@ RegisterNetEvent('ox_doorlock:editDoorlock', function(id, data)
 				name = data.name,
 				data = data
 			})
-			local door = createDoor(insertId, data, data.name)
+			local door = createDoor(tonumber(insertId), data, data.name)
 
 			TriggerClientEvent('ox_doorlock:setState', -1, door.id, door.state, false, door)
 		end
