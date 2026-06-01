@@ -41,7 +41,7 @@ data_file 'AUDIO_WAVEPACK' 'audio/dlc_oxdoorlock'
 data_file 'AUDIO_SOUNDDATA' 'audio/data/oxdoorlock_sounds.dat'
 
 dependencies {
-    'oxmysql',
+    'chiliaddb',
     'ox_lib',
 }
 
