@@ -18,16 +18,14 @@ local function flattenTableToArray(tbl)
 	end
 end
 
-MySQL.ready(function()
+ChiliadDB.ready(function()
 	local files, fileCount = utils.getFilesInDirectory('convert', '%.lua')
 
 	if fileCount > 0 then
 		print(('^3Found %d nui_doorlock config files.^0'):format(fileCount))
 	end
 
-	local query =
-	'INSERT INTO `ox_doorlock` (`name`, `data`) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM `ox_doorlock` WHERE `name` = ?)'
-	local queries = {}
+	local documents = {}
 
 	for i = 1, fileCount do
 		local fileName = files[i]
@@ -113,21 +111,19 @@ MySQL.ready(function()
 
 					local name = ('%s %s'):format(fileName, k)
 
-					queries[size] = {
-						query = query, values = { name, json.encode(data), name }
-					}
+					documents[size] = {name = name, data = data}
 				end
 
 				print(('^3Loaded %d doors from convert/%s.lua.^0'):format(size, fileName))
 
-				if MySQL.transaction.await(queries) then
+				if ChiliadDB.insert({collection = 'ox_doorlock', documents = documents, options = {skipIfExists = {name = true}}}) then
 					SaveResourceFile('ox_doorlock', ('convert/%s.lua'):format(fileName),
 						'-- This file has already been converted for ox_doorlock and should be removed.\r\ndo return end\r\n\r\n' ..
 						file, -1)
 				end
 
 				table.wipe(Config.DoorList)
-				table.wipe(queries)
+				table.wipe(documents)
 			end
 		end
 	end

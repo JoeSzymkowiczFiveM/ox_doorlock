@@ -3,7 +3,7 @@ if not LoadResourceFile(cache.resource, 'web/build/index.html') then
         'Unable to load UI. Build ox_doorlock or download the latest release.\n	^3https://github.com/overextended/ox_doorlock/releases/latest/download/ox_doorlock.zip^0')
 end
 
-if not lib.checkDependency('oxmysql', '2.4.0') then return end
+if not lib.checkDependency('chiliaddb', '0.3.0') then return end
 if not lib.checkDependency('ox_lib', '3.30.4') then return end
 
 lib.versionCheck('overextended/ox_doorlock')
@@ -13,21 +13,26 @@ local utils = require 'server.utils'
 local TriggerEventHooks = require 'server.hooks'
 local doors = {}
 
+local function vec3ToTable(v)
+    if not v then return nil end
+    return {x = v.x, y = v.y, z = v.z}
+end
+
 local function encodeData(door)
     local double = door.doors
 
-    return json.encode({
+    return {
         auto = door.auto,
         autolock = door.autolock,
-        coords = door.coords,
+        coords = vec3ToTable(door.coords),
         doors = double and {
             {
-                coords = double[1].coords,
+                coords = vec3ToTable(double[1].coords),
                 heading = double[1].heading,
                 model = double[1].model,
             },
             {
-                coords = double[2].coords,
+                coords = vec3ToTable(double[2].coords),
                 heading = double[2].heading,
                 model = double[2].model,
             },
@@ -47,7 +52,7 @@ local function encodeData(door)
         unlockSound = door.unlockSound,
         passcode = door.passcode,
         lockpickDifficulty = door.lockpickDifficulty
-    })
+    }
 end
 
 local function getDoor(door)
@@ -103,7 +108,7 @@ exports('editDoor', function(id, data)
             end
         end
 
-        MySQL.update('UPDATE ox_doorlock SET name = ?, data = ? WHERE id = ?', { door.name, encodeData(door), id })
+        ChiliadDB.updateOne({collection = 'ox_doorlock', query = {id = id}, update = {name = door.name, data = encodeData(door)}})
         TriggerClientEvent('ox_doorlock:editDoorlock', -1, id, door)
     end
 end)
@@ -153,7 +158,7 @@ local function createDoor(id, door, name)
         end
 
         door.items = items
-        MySQL.update('UPDATE ox_doorlock SET data = ? WHERE id = ?', { encodeData(door), id })
+        ChiliadDB.updateOne({collection = 'ox_doorlock', query = {id = id}, update = {data = encodeData(door)}})
     end
 
     doors[id] = door
@@ -249,18 +254,15 @@ local function isAuthorised(playerId, door, lockpick)
     return authorised or hookResult == nil or hookResult
 end
 
-local sql = LoadResourceFile(cache.resource, 'sql/ox_doorlock.sql')
-
-if sql then MySQL.query(sql) end
-
-MySQL.ready(function()
+ChiliadDB.ready(function()
     while Config.DoorList do Wait(100) end
 
-    local response = MySQL.query.await('SELECT `id`, `name`, `data` FROM `ox_doorlock`')
+    local response = ChiliadDB.find({collection = 'ox_doorlock'})
 
-    for i = 1, #response do
-        local door = response[i]
-        createDoor(door.id, json.decode(door.data), door.name)
+    if response then
+        for id, door in pairs(response) do
+            createDoor(id, door.data, door.name)
+        end
     end
 
     isLoaded = true
@@ -334,17 +336,15 @@ RegisterNetEvent('ox_doorlock:editDoorlock', function(id, data)
 
         if id then
             if data then
-                MySQL.update('UPDATE ox_doorlock SET name = ?, data = ? WHERE id = ?',
-                    { data.name, encodeData(data), id })
+                ChiliadDB.updateOne({collection = 'ox_doorlock', query = {id = id}, update = {name = data.name, data = encodeData(data)}})
             else
-                MySQL.update('DELETE FROM ox_doorlock WHERE id = ?', { id })
+                ChiliadDB.delete({collection = 'ox_doorlock', query = {id = id}})
             end
 
             doors[id] = data
             TriggerClientEvent('ox_doorlock:editDoorlock', -1, id, data)
         else
-            local insertId = MySQL.insert.await('INSERT INTO ox_doorlock (name, data) VALUES (?, ?)',
-                { data.name, encodeData(data) })
+            local insertId = ChiliadDB.insertOne({collection = 'ox_doorlock', document = {name = data.name, data = encodeData(data)}, options = {selfInsertId = 'id'}})
             local door = createDoor(insertId, data, data.name)
 
             TriggerClientEvent('ox_doorlock:setState', -1, door.id, door.state, false, door)
