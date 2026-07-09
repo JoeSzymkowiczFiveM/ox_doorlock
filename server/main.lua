@@ -15,7 +15,7 @@ local doors = {}
 
 local function vec3ToTable(v)
     if not v then return nil end
-    return {x = v.x, y = v.y, z = v.z}
+    return { x = v.x, y = v.y, z = v.z }
 end
 
 local function encodeData(door)
@@ -108,7 +108,7 @@ exports('editDoor', function(id, data)
             end
         end
 
-        ChiliadDB.updateOne({collection = 'ox_doorlock', query = {id = id}, update = {name = door.name, data = encodeData(door)}})
+        ChiliadDB.updateOne({ collection = 'ox_doorlock', query = { id = id }, update = { name = door.name, data = encodeData(door) } })
         TriggerClientEvent('ox_doorlock:editDoorlock', -1, id, door)
     end
 end)
@@ -158,7 +158,7 @@ local function createDoor(id, door, name)
         end
 
         door.items = items
-        ChiliadDB.updateOne({collection = 'ox_doorlock', query = {id = id}, update = {data = encodeData(door)}})
+        ChiliadDB.updateOne({ collection = 'ox_doorlock', query = { id = id }, update = { data = encodeData(door) } })
     end
 
     doors[id] = door
@@ -184,8 +184,7 @@ exports('createDoor', function(data)
         data.name = tostring(data.coords)
     end
 
-    local insertId = MySQL.insert.await('INSERT INTO ox_doorlock (name, data) VALUES (?, ?)',
-        { data.name, encodeData(data) })
+    local insertId = ChiliadDB.insertOne({ collection = 'ox_doorlock', document = { name = data.name, data = encodeData(data) }, options = { selfInsertId = 'id' } })
     local door = createDoor(insertId, data, data.name)
 
     TriggerClientEvent('ox_doorlock:setState', -1, door.id, door.state, false, door)
@@ -200,7 +199,7 @@ exports('removeDoor', function(id)
         error(('No door found with id %s'):format(id))
     end
 
-    MySQL.update('DELETE FROM ox_doorlock WHERE id = ?', { id })
+    ChiliadDB.deleteOne({ collection = 'ox_doorlock', query = { id = id } })
     doors[id] = nil
     TriggerClientEvent('ox_doorlock:editDoorlock', -1, id, nil)
 
@@ -299,7 +298,7 @@ end
 ChiliadDB.ready(function()
     while Config.DoorList do Wait(100) end
 
-    local response = ChiliadDB.find({collection = 'ox_doorlock'})
+    local response = ChiliadDB.find({ collection = 'ox_doorlock' })
 
     if response then
         for id, door in pairs(response) do
@@ -378,15 +377,15 @@ RegisterNetEvent('ox_doorlock:editDoorlock', function(id, data)
 
         if id then
             if data then
-                ChiliadDB.updateOne({collection = 'ox_doorlock', query = {id = id}, update = {name = data.name, data = encodeData(data)}})
+                ChiliadDB.updateOne({ collection = 'ox_doorlock', query = { id = id }, update = { name = data.name, data = encodeData(data) } })
             else
-                ChiliadDB.delete({collection = 'ox_doorlock', query = {id = id}})
+                ChiliadDB.delete({ collection = 'ox_doorlock', query = { id = id } })
             end
 
             doors[id] = data
             TriggerClientEvent('ox_doorlock:editDoorlock', -1, id, data)
         else
-            local insertId = ChiliadDB.insertOne({collection = 'ox_doorlock', document = {name = data.name, data = encodeData(data)}, options = {selfInsertId = 'id'}})
+            local insertId = ChiliadDB.insertOne({ collection = 'ox_doorlock', document = { name = data.name, data = encodeData(data) }, options = { selfInsertId = 'id' } })
             local door = createDoor(insertId, data, data.name)
 
             TriggerClientEvent('ox_doorlock:setState', -1, door.id, door.state, false, door)
